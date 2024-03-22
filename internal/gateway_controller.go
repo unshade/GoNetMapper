@@ -56,11 +56,14 @@ func ScanGateway(gateway net.IPNet) {
 		channels[i] = make(chan string)
 		go func(i int, ch chan string) {
 			for ip := range ch {
-				ip := net.ParseIP(ip)
-				err := Ping(ip, 1*time.Second)
-				if err == nil {
-					fmt.Printf("Host %s is up\n", ip.String())
-				}
+				ip := ip
+				// may be too fast
+				go func() {
+					duration, err := Ping(ip, 1*time.Second)
+					if err == nil {
+						fmt.Printf("Host %s is up: time=%v\n", ip, duration)
+					}
+				}()
 			}
 		}(i, channels[i])
 	}
@@ -78,51 +81,60 @@ func ScanGateway(gateway net.IPNet) {
 	}
 }
 
-func Ping(ip net.IP, timeout time.Duration) error {
-	conn, err := icmp.ListenPacket("udp4", "0.0.0.0")
+func Ping(ipString string, timeout time.Duration) (time.Duration, error) {
+	c, err := icmp.ListenPacket("udp4", "0.0.0.0")
 	if err != nil {
-		return err
+		return 0, err
 	}
-	defer conn.Close()
-
-	msg := icmp.Message{
-		Type: ipv4.ICMPTypeEcho, Code: 0,
+	defer c.Close()
+	// Generate an Echo message
+	msg := &icmp.Message{
+		Type: ipv4.ICMPTypeEcho,
+		Code: 0,
 		Body: &icmp.Echo{
-			ID: os.Getpid() & 0xffff, Seq: 1,
-			Data: []byte(""),
+			ID:   os.Getpid() & 0xffff,
+			Seq:  1,
+			Data: []byte("Hello, are you there!"),
 		},
 	}
-	msgBytes, err := msg.Marshal(nil)
+	wb, err := msg.Marshal(nil)
 	if err != nil {
-		return err
+		return 0, err
 	}
-
-	// Write the message to the listening connection
-	if _, err := conn.WriteTo(msgBytes, &net.UDPAddr{IP: net.ParseIP(ip.String())}); err != nil {
-		return err
+	// Send, note that here it must be a UDP address
+	start := time.Now()
+	if _, err := c.WriteTo(wb, &net.UDPAddr{IP: net.ParseIP(ipString)}); err != nil {
+		return 0, err
 	}
-
-	err = conn.SetReadDeadline(time.Now().Add(timeout))
-	if err != nil {
-		return err
-	}
+	// Read the reply package
 	reply := make([]byte, 1500)
-	n, _, err := conn.ReadFrom(reply)
-
+	err = c.SetReadDeadline(time.Now().Add(timeout))
 	if err != nil {
-		return err
+		return 0, err
 	}
-	parsedReply, err := icmp.ParseMessage(1, reply[:n])
-
+	n, peer, err := c.ReadFrom(reply)
 	if err != nil {
-		return err
+		return 0, err
+	}
+	duration := time.Since(start)
+
+	// The reply packet is an ICMP message, parsed first
+	msg, err = icmp.ParseMessage(1, reply[:n])
+	if err != nil {
+		return 0, err
 	}
 
-	if parsedReply.Type == ipv4.ICMPTypeEchoReply {
-		return nil
+	// Get results
+	if msg.Type == ipv4.ICMPTypeEchoReply {
+		echoReply, ok := msg.Body.(*icmp.Echo) // The message body is of type Echo
+		if !ok {
+			return 0, fmt.Errorf("invalid ICMP Echo Reply message")
+		}
+		if peer.(*net.UDPAddr).IP.String() == ipString && echoReply.Seq == 1 && echoReply.ID == os.Getpid()&0xffff {
+			return duration, nil
+		}
 	}
-
-	return fmt.Errorf("reply from %s is not an echo reply", ip.String())
+	return 0, fmt.Errorf("unexpected ICMP message type: %v", msg.Type)
 }
 
 func incIP(ip net.IP) {
