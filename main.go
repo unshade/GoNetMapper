@@ -17,5 +17,6 @@ func main() {
 	for _, gateway := range gateways {
 		fmt.Println(gateway)
 		internal.ScanGateway(gateway)
+		internal.TcpScan(gateway.IP.To4().String(), 1, 10000)
 	}
 }
