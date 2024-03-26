@@ -1,13 +1,14 @@
-package cmd
+package scan_gateway
 
 import (
 	"fmt"
 	"github.com/spf13/cobra"
+	"main/cmd"
 	"main/internal"
 )
 
 func init() {
-	rootCmd.AddCommand(scanGatewayCommand)
+	cmd.RootCmd.AddCommand(scanGatewayCommand)
 }
 
 var scanGatewayCommand = &cobra.Command{

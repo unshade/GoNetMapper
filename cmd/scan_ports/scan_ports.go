@@ -1,14 +1,15 @@
-package cmd
+package scan_ports
 
 import (
 	"fmt"
 	"github.com/spf13/cobra"
+	"main/cmd"
 	"main/internal"
 	"strconv"
 )
 
 func init() {
-	rootCmd.AddCommand(scanPortsCommand)
+	cmd.RootCmd.AddCommand(scanPortsCommand)
 }
 
 var scanPortsCommand = &cobra.Command{
