@@ -18,8 +18,9 @@ func scanPort(ip string, port int, results chan<- int) {
 }
 
 func TcpScan(ip string, startPort, endPort int) {
+	fmt.Println("Scanning ports on", ip)
+
 	results := make(chan int, endPort-startPort+1)
-	defer close(results)
 
 	var wg sync.WaitGroup
 	wg.Add(endPort - startPort + 1)
@@ -31,10 +32,8 @@ func TcpScan(ip string, startPort, endPort int) {
 		}(port)
 	}
 
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
+	wg.Wait()
+	close(results)
 
 	for port := range results {
 		fmt.Printf("Port %d is open\n", port)
