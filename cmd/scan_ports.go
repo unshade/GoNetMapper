@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"main/internal"
+	"strconv"
 )
 
 func init() {
@@ -22,10 +23,38 @@ var scanPortsCommand = &cobra.Command{
 		if !internal.IsValidIP(ip) {
 			return fmt.Errorf("invalid ip address")
 		}
+
+		// Check start and end port
+		if len(args) >= 2 {
+			startPort := args[1]
+			if !internal.IsValidPort(startPort) {
+				return fmt.Errorf("invalid start port")
+			}
+
+			if len(args) == 3 {
+				endPort := args[2]
+				if !internal.IsValidPort(endPort) {
+					return fmt.Errorf("invalid end port")
+				}
+
+				if startPort > endPort {
+					return fmt.Errorf("start port must be less than end port")
+				}
+			}
+		}
+
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		ip := args[0]
-		internal.TcpScan(ip, 1, 10000)
+		startPort := 1
+		endPort := 10000
+		if len(args) >= 2 {
+			startPort, _ = strconv.Atoi(args[1])
+			if len(args) == 3 {
+				endPort, _ = strconv.Atoi(args[2])
+			}
+		}
+		internal.TcpScan(ip, startPort, endPort)
 	},
 }
