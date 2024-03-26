@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -55,6 +56,9 @@ func ScanGatewayNetwork(gateway net.IPNet) string {
 
 	channels := make([]chan string, n)
 
+	var mut sync.Mutex
+	var wg sync.WaitGroup
+
 	for i := 0; i < n; i++ {
 		channels[i] = make(chan string)
 		go func(i int, ch chan string) {
@@ -62,9 +66,14 @@ func ScanGatewayNetwork(gateway net.IPNet) string {
 				ip := ip
 				// may be too fast
 				go func() {
+					wg.Add(1)
+					defer wg.Done()
 					duration, err := Ping(ip, 1*time.Second)
 					if err == nil {
 						fmt.Printf("Host %s is up: time=%v\n", ip, duration)
+						mut.Lock()
+						builder.WriteString(fmt.Sprintf("Host %s is up: time=%v\n", ip, duration))
+						mut.Unlock()
 					}
 				}()
 			}
@@ -82,6 +91,8 @@ func ScanGatewayNetwork(gateway net.IPNet) string {
 	for i := 0; i < n; i++ {
 		close(channels[i])
 	}
+
+	wg.Wait()
 
 	return builder.String()
 }
