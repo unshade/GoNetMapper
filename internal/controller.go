@@ -52,10 +52,9 @@ func handleConnection(conn net.Conn) {
 		case "status":
 			conn.Write([]byte("daemon is running\n"))
 		case "scan-gateway":
-			conn.Write([]byte("scanning gateway\n"))
 			gateway, _ := GetGateways()
-			ScanGateway(gateway[0])
-			conn.Write([]byte("gateway scanned\n"))
+			res := ScanGatewayNetwork(gateway[0])
+			conn.Write([]byte(res))
 		case "kill":
 			conn.Write([]byte("killing daemon\n"))
 			conn.Close()

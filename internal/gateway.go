@@ -6,6 +6,7 @@ import (
 	"golang.org/x/net/ipv4"
 	"net"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -35,10 +36,12 @@ func GetGateways() ([]net.IPNet, error) {
 	return gateways, nil
 }
 
-func ScanGateway(gateway net.IPNet) {
+func ScanGatewayNetwork(gateway net.IPNet) string {
 	mask := gateway.Mask
 	network := gateway.IP.Mask(mask)
 	broadcast := net.IP(make([]byte, len(network)))
+
+	builder := strings.Builder{}
 
 	// Apply the bitwise NOT operator to the mask and OR it with the network address to get the broadcast address.
 	for i := range network {
@@ -47,9 +50,15 @@ func ScanGateway(gateway net.IPNet) {
 
 	fmt.Printf("Network: %s\n", network.String())
 	fmt.Printf("Broadcast: %s\n", broadcast.String())
+	builder.WriteString(fmt.Sprintf("Network: %s\n", network.String()))
+	builder.WriteString(fmt.Sprintf("Broadcast: %s\n", broadcast.String()))
+	builder.WriteString("Mask: " + mask.String() + "\n")
 
-	// Prepare the goroutines
-	n := 255
+	n := 1
+	for i := 0; i < len(mask); i++ {
+		n *= 256 - int(mask[i])
+	}
+
 	channels := make([]chan string, n)
 
 	for i := 0; i < n; i++ {
@@ -79,6 +88,8 @@ func ScanGateway(gateway net.IPNet) {
 	for i := 0; i < n; i++ {
 		close(channels[i])
 	}
+
+	return builder.String()
 }
 
 func Ping(ipString string, timeout time.Duration) (time.Duration, error) {
