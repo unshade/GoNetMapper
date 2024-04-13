@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"main/cmd/scan_gateway"
 	"main/cmd/scan_ports"
+	"main/cmd/version"
 	"os"
 )
 
@@ -33,4 +34,5 @@ func Register() {
 	RootCmd.AddCommand(execMode)
 	RootCmd.AddCommand(scan_ports.ScanPortsCommand)
 	RootCmd.AddCommand(scan_gateway.ScanGatewayCommand)
+	RootCmd.AddCommand(version.VersionCmd)
 }

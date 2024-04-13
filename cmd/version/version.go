@@ -3,14 +3,9 @@ package version
 import (
 	"fmt"
 	"github.com/spf13/cobra"
-	"main/cmd"
 )
 
-func init() {
-	cmd.RootCmd.AddCommand(versionCmd)
-}
-
-var versionCmd = &cobra.Command{
+var VersionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version number of Radar",
 	Long:  `Print the version number of Radar`,

@@ -53,12 +53,19 @@ func handleConnection(conn net.Conn, rootCmd *cobra.Command) {
 		fmt.Println("Received buffer", string(buffer))
 		args := strings.Split(string(buffer), " ")
 		commandName := args[0]
+
 		fmt.Println("Executing command", commandName, "with args", args[1:])
 
 		cmdList := rootCmd.Commands()
 
 		for _, cmd := range cmdList {
-			if cmd.Name() == commandName {
+
+			fmt.Println("Checking command", cmd.Name())
+
+			cleanedCmdName := commandName[:len(commandName)-2]
+
+			if cleanedCmdName == cmd.Name() {
+				fmt.Println("Found command", cmd.Name())
 				cmd.SetArgs(args[1:])
 				fmt.Println("Executing command", cmd.Name())
 				go cmd.Run(cmd, args[1:])
