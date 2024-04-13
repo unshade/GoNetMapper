@@ -15,7 +15,7 @@ var RootCmd = &cobra.Command{
 	Short: "Radar is an easy network scanner and monitoring tool.",
 	Long:  "Radar is an easy network scanner and monitoring tool.",
 	Run: func(cmd *cobra.Command, args []string) {
-		if _, err := tea.NewProgram(newModel()).Run(); err != nil {
+		if _, err := tea.NewProgram(newModel(), tea.WithAltScreen(), tea.WithMouseCellMotion()).Run(); err != nil {
 			fmt.Println("Error running program:", err)
 			os.Exit(1)
 		}

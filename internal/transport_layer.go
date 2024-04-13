@@ -19,13 +19,16 @@ func scanPort(ip string, port int) bool {
 	return true
 }
 
-func TcpScan(ip string, startPort, endPort int) {
+func TcpScan(ip string, startPort, endPort int, progression *float64) {
 	fmt.Println("Scanning ports on", ip)
 
 	var results sync.Map
 	var wg sync.WaitGroup
 
 	semaphore := make(chan struct{}, maxGoroutines)
+	mutex := &sync.Mutex{}
+
+	done := 0
 
 	for port := startPort; port <= endPort; port++ {
 		semaphore <- struct{}{}
@@ -33,8 +36,18 @@ func TcpScan(ip string, startPort, endPort int) {
 		go func(p int) {
 			defer wg.Done()
 			defer func() { <-semaphore }()
+
+			// Update progression
+			defer func() {
+				mutex.Lock()
+				done++
+				*progression = float64(done) / float64(endPort-startPort+1)
+				mutex.Unlock()
+			}()
+
 			if isOpen := scanPort(ip, p); isOpen {
 				results.Store(p, struct{}{})
+				fmt.Printf("Port %d is open\n", p)
 			}
 		}(port)
 	}
@@ -42,8 +55,8 @@ func TcpScan(ip string, startPort, endPort int) {
 	wg.Wait()
 
 	results.Range(func(key, value interface{}) bool {
-		port := key.(int)
-		fmt.Printf("Port %d is open\n", port)
+		/*port := key.(int)
+		fmt.Printf("Port %d is open\n", port)*/
 		return true
 	})
 }
