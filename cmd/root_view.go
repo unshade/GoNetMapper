@@ -54,9 +54,11 @@ type model struct {
 
 func newModel() model {
 	// Make initial list of items
-	items := make([]list.Item, 2)
+	items := make([]list.Item, 4)
 	items[0] = item{"Scan ports", "Scan ports of an ip address"}
 	items[1] = item{"Scan gateways", "Scan your network gateways"}
+	items[2] = item{"Clear", "Clear the command output"}
+	items[3] = item{"Exit", "Exit the program"}
 
 	// Setup list
 	delegate := list.NewDefaultDelegate()
@@ -209,6 +211,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					os.Stdout = stdout
 					os.Stderr = stderr
 				}()
+			case 2:
+				// Clear
+				m.commandOutput = ""
+				m.viewport.SetContent(m.commandOutput)
+			case 3:
+				// Exit
+				return m, tea.Quit
 			}
 		}
 	}
