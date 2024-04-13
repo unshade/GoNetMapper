@@ -52,45 +52,37 @@ func ScanGatewayNetwork(gateway net.IPNet) string {
 	builder.WriteString(fmt.Sprintf("Broadcast: %s\n", broadcast.String()))
 	builder.WriteString("Mask: " + mask.String() + "\n")
 
-	n := 255
-
-	channels := make([]chan string, n)
-
 	var mut sync.Mutex
 	var wg sync.WaitGroup
 
-	for i := 0; i < n; i++ {
-		channels[i] = make(chan string)
-		go func(i int, ch chan string) {
-			for ip := range ch {
-				ip := ip
-				// may be too fast
-				go func() {
-					wg.Add(1)
-					defer wg.Done()
-					duration, err := Ping(ip, 1*time.Second)
-					if err == nil {
-						fmt.Printf("Host %s is up: time=%v\n", ip, duration)
-						mut.Lock()
-						builder.WriteString(fmt.Sprintf("Host %s is up: time=%v\n", ip, duration))
-						mut.Unlock()
-					}
-				}()
-			}
-		}(i, channels[i])
-	}
+	ch := make(chan string)
+
+	go func() {
+		for ip := range ch {
+			ip := ip
+			// may be too fast
+			go func() {
+				wg.Add(1)
+				defer wg.Done()
+				duration, err := Ping(ip, 1*time.Second)
+				if err == nil {
+					fmt.Printf("Host %s is up: time=%v\n", ip, duration)
+					mut.Lock()
+					builder.WriteString(fmt.Sprintf("Host %s is up: time=%v\n", ip, duration))
+					mut.Unlock()
+				}
+			}()
+		}
+	}()
 
 	c := 0
 	for ip := network.Mask(mask); !ip.Equal(broadcast); IncIP(ip) {
 		if !ip.Equal(network) && !ip.Equal(broadcast) {
-			channels[c%n] <- ip.String()
+			ch <- ip.String()
 			c++
 		}
 	}
-
-	for i := 0; i < n; i++ {
-		close(channels[i])
-	}
+	close(ch)
 
 	wg.Wait()
 

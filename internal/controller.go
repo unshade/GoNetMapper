@@ -39,7 +39,7 @@ func handleConnection(conn net.Conn, rootCmd *cobra.Command) {
 	for {
 		buffer := make([]byte, 1024)
 
-		_, err := conn.Read(buffer)
+		n, err := conn.Read(buffer)
 
 		if err != nil {
 			log.Println(err)
@@ -48,6 +48,7 @@ func handleConnection(conn net.Conn, rootCmd *cobra.Command) {
 		}
 
 		buffer = cleanBuffer(buffer)
+		buffer = buffer[:n]
 
 		fmt.Println("Received buffer", string(buffer))
 		args := strings.Split(string(buffer), " ")
@@ -57,12 +58,10 @@ func handleConnection(conn net.Conn, rootCmd *cobra.Command) {
 		cmdList := rootCmd.Commands()
 
 		for _, cmd := range cmdList {
-			fmt.Println("Checking command", cmd.Name())
 			if cmd.Name() == commandName {
 				cmd.SetArgs(args[1:])
 				fmt.Println("Executing command", cmd.Name())
-				fmt.Println(cmd)
-				cmd.Execute()
+				go cmd.Run(cmd, args[1:])
 			}
 
 		}
