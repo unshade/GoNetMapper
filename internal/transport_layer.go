@@ -21,6 +21,7 @@ func scanPort(ip string, port int) bool {
 
 func TcpScan(ip string, startPort, endPort int, progression *float64) {
 	fmt.Println("Scanning ports on", ip)
+	*progression = 0
 
 	var results sync.Map
 	var wg sync.WaitGroup

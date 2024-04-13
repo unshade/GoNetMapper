@@ -21,7 +21,7 @@ var ScanGatewayCommand = &cobra.Command{
 
 		for _, gateway := range gateways {
 			fmt.Println(gateway)
-			internal.ScanGatewayNetwork(gateway)
+			internal.ScanGatewayNetwork(gateway, &internal.Progression)
 		}
 	},
 }

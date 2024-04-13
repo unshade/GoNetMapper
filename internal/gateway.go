@@ -34,7 +34,9 @@ func GetGateways() ([]net.IPNet, error) {
 	return gateways, nil
 }
 
-func ScanGatewayNetwork(gateway net.IPNet) string {
+func ScanGatewayNetwork(gateway net.IPNet, progression *float64) string {
+	*progression = 0
+
 	mask := gateway.Mask
 	network := gateway.IP.Mask(mask)
 	broadcast := net.IP(make([]byte, len(network)))
@@ -55,6 +57,9 @@ func ScanGatewayNetwork(gateway net.IPNet) string {
 	var mut sync.Mutex
 	var wg sync.WaitGroup
 
+	done := 0
+	_, bits := mask.Size()
+	total := 1 << uint(32-bits)
 	ch := make(chan string)
 
 	go func() {
@@ -65,6 +70,12 @@ func ScanGatewayNetwork(gateway net.IPNet) string {
 				wg.Add(1)
 				defer wg.Done()
 				duration, err := Ping(ip, 1*time.Second)
+
+				mut.Lock()
+				done++
+				*progression = float64(done) / float64(total)
+				mut.Unlock()
+
 				if err == nil {
 					fmt.Printf("Host %s is up: time=%v\n", ip, duration)
 					mut.Lock()

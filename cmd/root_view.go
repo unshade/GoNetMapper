@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"main/cmd/scan_gateway"
 	"main/cmd/scan_ports"
+	"main/internal"
 	"os"
 	"strings"
 	"time"
@@ -21,6 +22,12 @@ var (
 			Foreground(lipgloss.Color("#FFFDF5")).
 			Background(lipgloss.Color("#25A065")).
 			Padding(0, 1)
+
+	infoStyle = func() lipgloss.Style {
+		b := lipgloss.RoundedBorder()
+		b.Left = "┤"
+		return titleStyle.Copy().BorderStyle(b)
+	}()
 )
 
 type item struct {
@@ -38,6 +45,7 @@ func (i item) FilterValue() string { return i.title }
 
 type model struct {
 	sub           chan string
+	ready         bool
 	list          list.Model
 	viewport      viewport.Model
 	commandOutput string
@@ -86,6 +94,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		h, v := appStyle.GetFrameSize()
 		m.list.SetSize(msg.Width-h, msg.Height-v)
 
+		if !m.ready {
+			m.viewport = viewport.New(96, 19)
+			m.viewport.YPosition = 0
+			m.viewport.SetContent(m.commandOutput)
+			m.ready = true
+		} else {
+			m.viewport.Width = msg.Width
+			m.viewport.Height = msg.Height
+		}
+
 	case progress.FrameMsg:
 		progressModel, cmd := m.progress.Update(msg)
 		m.progress = progressModel.(progress.Model)
@@ -94,12 +112,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		// Note that you can also use progress.Model.SetPercent to set the
 		// percentage value explicitly, too.
-		cmd := m.progress.SetPercent(scan_ports.Progression)
+		cmd := m.progress.SetPercent(internal.Progression)
 		return m, tea.Batch(tickCmd(), cmd)
 
 	case finishedMsg:
 		// Set the command output to the result of the command
 		m.commandOutput += fmt.Sprintf("%s", msg)
+		m.viewport.SetContent(m.commandOutput)
 		cmds = append(cmds, waitForFinishedMsg(m.sub))
 
 	case tea.KeyMsg:
@@ -112,7 +131,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch m.list.Cursor() {
 			case 0:
 				// Scan ports
-
 				go func() {
 					read, write, err := os.Pipe()
 					if err != nil {
@@ -154,35 +172,43 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case 1:
 				// Scan gateways
 
-				read, write, err := os.Pipe()
-				if err != nil {
-					fmt.Println(err)
-					return m, nil
-				}
+				go func() {
+					read, write, err := os.Pipe()
+					if err != nil {
+						fmt.Println(err)
+						return
+					}
 
-				scan_gateway.ScanGatewayCommand.SetOut(write)
-				scan_gateway.ScanGatewayCommand.SetErr(write)
+					scan_gateway.ScanGatewayCommand.SetOut(write)
+					scan_gateway.ScanGatewayCommand.SetErr(write)
 
-				stdout := os.Stdout
-				stderr := os.Stderr
+					stdout := os.Stdout
+					stderr := os.Stderr
 
-				os.Stdout = write
-				os.Stderr = write
+					os.Stdout = write
+					os.Stderr = write
 
-				scan_gateway.ScanGatewayCommand.Run(scan_gateway.ScanGatewayCommand, []string{})
+					go func() {
+						// Always read from the pipe to prevent deadlock
+						buf := make([]byte, 1024)
+						for {
+							n, err := read.Read(buf)
+							if err != nil {
+								break
+							}
+							m.sub <- string(buf[:n])
+						}
 
-				write.Close()
+					}()
 
-				buf := make([]byte, 1024)
-				n, err := read.Read(buf)
+					scan_gateway.ScanGatewayCommand.Run(scan_gateway.ScanGatewayCommand, []string{})
 
-				outputString := string(buf[:n])
-				if err == nil {
-					m.commandOutput = outputString
-				}
+					write.Close()
+					read.Close()
 
-				os.Stdout = stdout
-				os.Stderr = stderr
+					os.Stdout = stdout
+					os.Stderr = stderr
+				}()
 			}
 		}
 	}
@@ -217,7 +243,7 @@ func (m model) View() string {
 			lipgloss.JoinVertical(
 				lipgloss.Top,
 				appStyle.Render(m.progress.View()),
-				commandLogStyle.Render(m.commandOutput),
+				commandLogStyle.Render(m.viewport.View()),
 			),
 		))
 	}

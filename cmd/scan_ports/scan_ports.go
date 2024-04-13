@@ -7,8 +7,6 @@ import (
 	"strconv"
 )
 
-var Progression = 0.0
-
 var ScanPortsCommand = &cobra.Command{
 	Use:   "scan-ports",
 	Short: "Scan ports of an ip address",
@@ -53,6 +51,6 @@ var ScanPortsCommand = &cobra.Command{
 				endPort, _ = strconv.Atoi(args[2])
 			}
 		}
-		internal.TcpScan(ip, startPort, endPort, &Progression)
+		internal.TcpScan(ip, startPort, endPort, &internal.Progression)
 	},
 }
