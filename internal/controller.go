@@ -48,8 +48,8 @@ func handleConnection(conn net.Conn, rootCmd *cobra.Command) {
 			return
 		}
 
-		buffer = cleanBuffer(buffer)
 		buffer = buffer[:n]
+		buffer = cleanBuffer(buffer)
 
 		fmt.Println("Received buffer", string(buffer))
 		args := strings.Split(string(buffer), " ")
@@ -63,9 +63,7 @@ func handleConnection(conn net.Conn, rootCmd *cobra.Command) {
 
 			fmt.Println("Checking command", cmd.Name())
 
-			cleanedCmdName := commandName[:len(commandName)-2]
-
-			if cleanedCmdName == cmd.Name() {
+			if commandName == cmd.Name() {
 				fmt.Println("Found command", cmd.Name())
 				cmd.SetArgs(args[1:])
 				fmt.Println("Executing command", cmd.Name())
@@ -98,10 +96,14 @@ func handleConnection(conn net.Conn, rootCmd *cobra.Command) {
 
 				cmd.Run(cmd, args[1:])
 
+				pipeWriter.Close()
+
 				_, err = io.Copy(conn, pipeReader)
 				if err != nil {
+					fmt.Println("Error copying to connection", err)
 					return
 				}
+				pipeReader.Close()
 
 				os.Stdout = stdout
 				os.Stderr = stderr
