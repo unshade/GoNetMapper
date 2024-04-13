@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -50,6 +51,9 @@ type model struct {
 	viewport      viewport.Model
 	commandOutput string
 	progress      progress.Model
+
+	needConfirm bool
+	confirm     textinput.Model
 }
 
 func newModel() model {
@@ -68,10 +72,16 @@ func newModel() model {
 
 	progress := progress.New(progress.WithDefaultGradient())
 
+	confirm := textinput.New()
+	confirm.Placeholder = "Please enter an ip address..."
+	confirm.CharLimit = 15
+
 	return model{
-		sub:      make(chan string),
-		list:     commandList,
-		progress: progress,
+		sub:         make(chan string),
+		list:        commandList,
+		progress:    progress,
+		confirm:     confirm,
+		needConfirm: false,
 	}
 }
 
@@ -130,9 +140,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if msg.String() == "enter" {
-			switch m.list.Cursor() {
-			case 0:
-				// Scan ports
+			if m.confirm.Focused() {
+				m.needConfirm = false
+				m.confirm.Blur()
+				ip := m.confirm.Value()
 				go func() {
 					read, write, err := os.Pipe()
 					if err != nil {
@@ -162,7 +173,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 					}()
 
-					scan_ports.ScanPortsCommand.Run(scan_ports.ScanPortsCommand, []string{"127.0.0.1"})
+					scan_ports.ScanPortsCommand.Run(scan_ports.ScanPortsCommand, []string{ip})
 
 					write.Close()
 					read.Close()
@@ -170,54 +181,61 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					os.Stdout = stdout
 					os.Stderr = stderr
 				}()
+			} else {
+				switch m.list.Cursor() {
+				case 0:
+					// Scan ports
+					m.needConfirm = true
+					m.confirm.Focus()
 
-			case 1:
-				// Scan gateways
-
-				go func() {
-					read, write, err := os.Pipe()
-					if err != nil {
-						fmt.Println(err)
-						return
-					}
-
-					scan_gateway.ScanGatewayCommand.SetOut(write)
-					scan_gateway.ScanGatewayCommand.SetErr(write)
-
-					stdout := os.Stdout
-					stderr := os.Stderr
-
-					os.Stdout = write
-					os.Stderr = write
+				case 1:
+					// Scan gateways
 
 					go func() {
-						// Always read from the pipe to prevent deadlock
-						buf := make([]byte, 1024)
-						for {
-							n, err := read.Read(buf)
-							if err != nil {
-								break
-							}
-							m.sub <- string(buf[:n])
+						read, write, err := os.Pipe()
+						if err != nil {
+							fmt.Println(err)
+							return
 						}
 
+						scan_gateway.ScanGatewayCommand.SetOut(write)
+						scan_gateway.ScanGatewayCommand.SetErr(write)
+
+						stdout := os.Stdout
+						stderr := os.Stderr
+
+						os.Stdout = write
+						os.Stderr = write
+
+						go func() {
+							// Always read from the pipe to prevent deadlock
+							buf := make([]byte, 1024)
+							for {
+								n, err := read.Read(buf)
+								if err != nil {
+									break
+								}
+								m.sub <- string(buf[:n])
+							}
+
+						}()
+
+						scan_gateway.ScanGatewayCommand.Run(scan_gateway.ScanGatewayCommand, []string{})
+
+						write.Close()
+						read.Close()
+
+						os.Stdout = stdout
+						os.Stderr = stderr
 					}()
-
-					scan_gateway.ScanGatewayCommand.Run(scan_gateway.ScanGatewayCommand, []string{})
-
-					write.Close()
-					read.Close()
-
-					os.Stdout = stdout
-					os.Stderr = stderr
-				}()
-			case 2:
-				// Clear
-				m.commandOutput = ""
-				m.viewport.SetContent(m.commandOutput)
-			case 3:
-				// Exit
-				return m, tea.Quit
+				case 2:
+					// Clear
+					m.commandOutput = ""
+					m.viewport.SetContent(m.commandOutput)
+				case 3:
+					// Exit
+					return m, tea.Quit
+				}
 			}
 		}
 	}
@@ -229,6 +247,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	m.viewport, cmd = m.viewport.Update(msg)
 	cmds = append(cmds, cmd)
+
+	m.confirm, cmd = m.confirm.Update(msg)
 
 	return m, tea.Batch(cmds...)
 }
@@ -245,7 +265,18 @@ func (m model) View() string {
 		Height(19).
 		Width(96)
 
-	{
+	if m.needConfirm {
+		doc.WriteString(lipgloss.JoinHorizontal(
+			lipgloss.Top,
+			appStyle.Render(m.list.View()),
+			lipgloss.JoinVertical(
+				lipgloss.Top,
+				m.confirm.View(),
+				appStyle.Render(m.progress.View()),
+				commandLogStyle.Render(m.viewport.View()),
+			),
+		))
+	} else {
 		doc.WriteString(lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			appStyle.Render(m.list.View()),
