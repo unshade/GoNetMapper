@@ -58,11 +58,13 @@ type model struct {
 
 func newModel() model {
 	// Make initial list of items
-	items := make([]list.Item, 4)
-	items[0] = item{"Scan ports", "Scan ports of an ip address"}
-	items[1] = item{"Scan gateways", "Scan your network gateways"}
-	items[2] = item{"Clear", "Clear the command output"}
-	items[3] = item{"Exit", "Exit the program"}
+	items := make([]list.Item, 6)
+	items[0] = item{"Start Server mode", "Start in server mode"}
+	items[1] = item{"Connect to server", "Connect to a server"}
+	items[2] = item{"Scan ports", "Scan ports of an ip address"}
+	items[3] = item{"Scan gateways", "Scan your network gateways"}
+	items[4] = item{"Clear", "Clear the command output"}
+	items[5] = item{"Exit", "Exit the program"}
 
 	// Setup list
 	delegate := list.NewDefaultDelegate()
@@ -184,11 +186,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				switch m.list.Cursor() {
 				case 0:
+					// Start in server mode
+
+				case 1:
+					// Connect to server
+
+				case 2:
 					// Scan ports
 					m.needConfirm = true
 					m.confirm.Focus()
 
-				case 1:
+				case 3:
 					// Scan gateways
 
 					go func() {
@@ -228,11 +236,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						os.Stdout = stdout
 						os.Stderr = stderr
 					}()
-				case 2:
+				case 4:
 					// Clear
 					m.commandOutput = ""
 					m.viewport.SetContent(m.commandOutput)
-				case 3:
+				case 5:
 					// Exit
 					return m, tea.Quit
 				}
