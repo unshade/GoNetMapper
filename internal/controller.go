@@ -51,39 +51,19 @@ func handleConnection(conn net.Conn, rootCmd *cobra.Command) {
 		buffer = buffer[:n]
 		buffer = cleanBuffer(buffer)
 
-		fmt.Println("Received buffer", string(buffer))
 		args := strings.Split(string(buffer), " ")
 		commandName := args[0]
-
-		fmt.Println("Executing command", commandName, "with args", args[1:])
 
 		cmdList := rootCmd.Commands()
 
 		for _, cmd := range cmdList {
-
-			fmt.Println("Checking command", cmd.Name())
-
 			if commandName == cmd.Name() {
-				fmt.Println("Found command", cmd.Name())
 				cmd.SetArgs(args[1:])
-				fmt.Println("Executing command", cmd.Name())
 
 				pipeReader, pipeWriter, err := os.Pipe()
 				if err != nil {
 					return
 				}
-				defer func(pipeReader *os.File) {
-					err := pipeReader.Close()
-					if err != nil {
-						return
-					}
-				}(pipeReader)
-				defer func(pipeWriter *os.File) {
-					err := pipeWriter.Close()
-					if err != nil {
-
-					}
-				}(pipeWriter)
 
 				cmd.SetOut(pipeWriter)
 				cmd.SetErr(pipeWriter)
