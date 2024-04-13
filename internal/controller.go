@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"github.com/spf13/cobra"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -68,7 +69,42 @@ func handleConnection(conn net.Conn, rootCmd *cobra.Command) {
 				fmt.Println("Found command", cmd.Name())
 				cmd.SetArgs(args[1:])
 				fmt.Println("Executing command", cmd.Name())
-				go cmd.Run(cmd, args[1:])
+
+				pipeReader, pipeWriter, err := os.Pipe()
+				if err != nil {
+					return
+				}
+				defer func(pipeReader *os.File) {
+					err := pipeReader.Close()
+					if err != nil {
+						return
+					}
+				}(pipeReader)
+				defer func(pipeWriter *os.File) {
+					err := pipeWriter.Close()
+					if err != nil {
+
+					}
+				}(pipeWriter)
+
+				cmd.SetOut(pipeWriter)
+				cmd.SetErr(pipeWriter)
+
+				stdout := os.Stdout
+				stderr := os.Stderr
+
+				os.Stdout = pipeWriter
+				os.Stderr = pipeWriter
+
+				cmd.Run(cmd, args[1:])
+
+				_, err = io.Copy(conn, pipeReader)
+				if err != nil {
+					return
+				}
+
+				os.Stdout = stdout
+				os.Stderr = stderr
 			}
 
 		}
