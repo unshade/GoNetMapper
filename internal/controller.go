@@ -2,12 +2,14 @@ package internal
 
 import (
 	"fmt"
+	"github.com/spf13/cobra"
 	"log"
 	"net"
 	"os"
+	"strings"
 )
 
-func ServerMode() {
+func ServerMode(rootCmd *cobra.Command) {
 
 	listen, err := net.Listen("tcp", "127.0.0.1:6666")
 	if err != nil {
@@ -26,12 +28,12 @@ func ServerMode() {
 			os.Exit(1)
 		}
 
-		go handleConnection(conn)
+		go handleConnection(conn, rootCmd)
 	}
 
 }
 
-func handleConnection(conn net.Conn) {
+func handleConnection(conn net.Conn, rootCmd *cobra.Command) {
 
 	conn.Write([]byte("You are connected to Radar Daemon on TCP port 6666\n"))
 	for {
@@ -44,22 +46,25 @@ func handleConnection(conn net.Conn) {
 			conn.Close()
 			return
 		}
-		fmt.Println(len(buffer))
-		fmt.Println(string(buffer))
-		switch string(cleanBuffer(buffer)) {
-		case "ping":
-			conn.Write([]byte("pong\n"))
-		case "status":
-			conn.Write([]byte("daemon is running\n"))
-		case "scan-gateway":
-			gateway, _ := GetGateways()
-			res := ScanGatewayNetwork(gateway[0])
-			conn.Write([]byte(res))
-		case "kill":
-			conn.Write([]byte("killing daemon\n"))
-			conn.Close()
-		default:
-			conn.Write([]byte("unknown command\n"))
+
+		buffer = cleanBuffer(buffer)
+
+		fmt.Println("Received buffer", string(buffer))
+		args := strings.Split(string(buffer), " ")
+		commandName := args[0]
+		fmt.Println("Executing command", commandName, "with args", args[1:])
+
+		cmdList := rootCmd.Commands()
+
+		for _, cmd := range cmdList {
+			fmt.Println("Checking command", cmd.Name())
+			if cmd.Name() == commandName {
+				cmd.SetArgs(args[1:])
+				fmt.Println("Executing command", cmd.Name())
+				fmt.Println(cmd)
+				cmd.Execute()
+			}
+
 		}
 	}
 }

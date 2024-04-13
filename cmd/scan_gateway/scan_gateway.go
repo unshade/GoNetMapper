@@ -3,19 +3,15 @@ package scan_gateway
 import (
 	"fmt"
 	"github.com/spf13/cobra"
-	"main/cmd"
 	"main/internal"
 )
 
-func init() {
-	cmd.RootCmd.AddCommand(scanGatewayCommand)
-}
-
-var scanGatewayCommand = &cobra.Command{
+var ScanGatewayCommand = &cobra.Command{
 	Use:   "scan-gateways",
 	Short: "Scan the gateways of the current network",
 	Long:  "Scan the gateways of the current network",
 	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Scanning gateways...")
 		gateways, err := internal.GetGateways()
 
 		if err != nil {

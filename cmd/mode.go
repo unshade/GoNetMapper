@@ -5,10 +5,6 @@ import (
 	"main/internal"
 )
 
-func init() {
-	RootCmd.AddCommand(execMode)
-}
-
 var execMode = &cobra.Command{
 	Use:   "exec-mode",
 	Short: "Execute the app in client or server mode",
@@ -18,7 +14,7 @@ var execMode = &cobra.Command{
 		if mode == "client" {
 
 		} else if mode == "server" {
-			internal.ServerMode()
+			internal.ServerMode(RootCmd)
 		} else {
 			// normal mode
 		}

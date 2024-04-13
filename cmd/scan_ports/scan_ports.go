@@ -3,16 +3,11 @@ package scan_ports
 import (
 	"fmt"
 	"github.com/spf13/cobra"
-	"main/cmd"
 	"main/internal"
 	"strconv"
 )
 
-func init() {
-	cmd.RootCmd.AddCommand(scanPortsCommand)
-}
-
-var scanPortsCommand = &cobra.Command{
+var ScanPortsCommand = &cobra.Command{
 	Use:   "scan-ports",
 	Short: "Scan ports of an ip address",
 	Long:  "Scan ports of an ip address",
