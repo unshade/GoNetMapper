@@ -54,6 +54,11 @@ func handleConnection(conn net.Conn, rootCmd *cobra.Command) {
 		args := strings.Split(string(buffer), " ")
 		commandName := args[0]
 
+		if commandName == "exit" {
+			conn.Close()
+			return
+		}
+
 		cmdList := rootCmd.Commands()
 
 		for _, cmd := range cmdList {
