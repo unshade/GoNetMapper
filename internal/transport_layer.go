@@ -11,7 +11,7 @@ const maxGoroutines = 1000
 
 func scanPort(ip string, port int) bool {
 	target := fmt.Sprintf("%s:%d", ip, port)
-	conn, err := net.DialTimeout("tcp", target, 1*time.Second)
+	conn, err := net.DialTimeout("tcp", target, 3*time.Second)
 	if err != nil {
 		return false
 	}
