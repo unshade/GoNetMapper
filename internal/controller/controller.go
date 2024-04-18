@@ -12,8 +12,8 @@ import (
 	"strings"
 )
 
-func ClientMode() {
-	conn, err := net.Dial("tcp", "127.0.0.1:6666")
+func ClientMode(ip string) {
+	conn, err := net.Dial("tcp", ip+":6666")
 	if err != nil {
 		fmt.Println("Error connecting to Radar Daemon on TCP port 6666", err)
 		os.Exit(1)
@@ -55,6 +55,45 @@ func ClientMode() {
 			os.Exit(1)
 		}
 	}
+}
+
+func TUIClientMode(ip string, commandChan chan string) {
+	conn, err := net.Dial("tcp", ip+":6666")
+	if err != nil {
+		fmt.Println("Error connecting to Radar Daemon on TCP port 6666", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("Connected to Radar Daemon on TCP port 6666")
+
+	go func() {
+		for {
+			buffer := make([]byte, 1024)
+			n, err := conn.Read(buffer)
+			if err != nil {
+				if err == io.EOF {
+					fmt.Println("Connection closed")
+				} else {
+					fmt.Println("Error reading from connection", err)
+				}
+				break
+			}
+			fmt.Print(string(buffer[:n]))
+		}
+	}()
+
+	go func() {
+		for {
+			select {
+			case command := <-commandChan:
+				_, err := conn.Write([]byte(command + "\n"))
+				if err != nil {
+					log.Fatal(err)
+					os.Exit(1)
+				}
+			}
+		}
+	}()
 }
 
 func ServerMode() {

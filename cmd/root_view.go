@@ -39,6 +39,9 @@ func (i item) Title() string       { return i.title }
 func (i item) Description() string { return i.description }
 func (i item) FilterValue() string { return i.title }
 
+var connectedToServer = false
+var channel chan string
+
 type model struct {
 	sub           chan string
 	ready         bool
@@ -140,8 +143,54 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.confirm.Focused() {
 				if m.confirm.Placeholder == "Please enter the server ip address..." {
 					// Connect to server
+					m.needConfirm = false
+					m.confirm.Blur()
+					ip := m.confirm.Value()
+					channel = make(chan string)
+					go func() {
+						read, write, err := os.Pipe()
+						if err != nil {
+							fmt.Println(err)
+							return
+						}
 
+						/*stdout := os.Stdout
+						stderr := os.Stderr*/
+
+						go func() {
+							// Always read from the pipe to prevent deadlock
+							buf := make([]byte, 1024)
+							for {
+								n, err := read.Read(buf)
+								if err != nil {
+									break
+								}
+								m.sub <- string(buf[:n])
+							}
+
+						}()
+
+						os.Stdout = write
+						os.Stderr = write
+
+						controller.TUIClientMode(ip, channel)
+
+						/*write.Close()
+						read.Close()
+
+						os.Stdout = stdout
+						os.Stderr = stderr*/
+					}()
+					connectedToServer = true
 				} else {
+					if connectedToServer {
+						m.needConfirm = false
+						m.confirm.Blur()
+
+						channel <- "scan-ports " + m.confirm.Value()
+						break
+					}
+
 					// Scan ports
 					m.needConfirm = false
 					m.confirm.Blur()
@@ -187,6 +236,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				switch m.list.Cursor() {
 				case 0:
+					if connectedToServer {
+						m.commandOutput = "You are already connected to a server\n"
+						m.viewport.SetContent(m.commandOutput)
+						break
+					}
 					// Start in server mode
 					read, write, err := os.Pipe()
 					if err == nil {
@@ -218,6 +272,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}()
 					}
 				case 1:
+					if connectedToServer {
+						m.commandOutput = "You are already connected to a server\n"
+						m.viewport.SetContent(m.commandOutput)
+						break
+					}
+
 					// Connect to server
 					m.confirm.Placeholder = "Please enter the server ip address..."
 					m.needConfirm = true
@@ -225,11 +285,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				case 2:
 					// Scan ports
+					m.confirm.Placeholder = "Please enter an ip address..."
 					m.needConfirm = true
 					m.confirm.Focus()
 
 				case 3:
 					// Scan gateways
+					if connectedToServer {
+						channel <- "scan-gateways"
+						break
+					}
 
 					go func() {
 						read, write, err := os.Pipe()

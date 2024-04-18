@@ -13,7 +13,13 @@ var ExecMode = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		mode := args[0]
 		if mode == "client" {
-			controller.ClientMode()
+			ip := ""
+			if len(args) == 2 {
+				ip = args[1]
+			} else {
+				ip = "127.0.0.1"
+			}
+			controller.ClientMode(ip)
 		} else if mode == "server" {
 			waitGroup := sync.WaitGroup{}
 			waitGroup.Add(1)
