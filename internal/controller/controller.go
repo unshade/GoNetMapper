@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"log"
@@ -10,6 +11,51 @@ import (
 	"os"
 	"strings"
 )
+
+func ClientMode() {
+	conn, err := net.Dial("tcp", "127.0.0.1:6666")
+	if err != nil {
+		fmt.Println("Error connecting to Radar Daemon on TCP port 6666", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("Connected to Radar Daemon on TCP port 6666")
+
+	go func() {
+		for {
+			buffer := make([]byte, 1024)
+			n, err := conn.Read(buffer)
+			if err != nil {
+				if err == io.EOF {
+					fmt.Println("Connection closed")
+				} else {
+					fmt.Println("Error reading from connection", err)
+				}
+				break
+			}
+			fmt.Print(string(buffer[:n]))
+		}
+	}()
+
+	for {
+		var input string
+		fmt.Print("radar> ")
+		scanner := bufio.NewScanner(os.Stdin)
+		if scanner.Scan() {
+			input = scanner.Text()
+		}
+		if input == "exit" {
+			conn.Close()
+			return
+		}
+
+		_, err := conn.Write([]byte(input + "\n"))
+		if err != nil {
+			log.Fatal(err)
+			os.Exit(1)
+		}
+	}
+}
 
 func ServerMode() {
 
@@ -62,6 +108,8 @@ func handleConnection(conn net.Conn) {
 			return
 		}
 
+		fmt.Println("Received command:", commandName, "with args:", args[1:])
+
 		pipeReader, pipeWriter, err := os.Pipe()
 		if err != nil {
 			return
@@ -75,10 +123,8 @@ func handleConnection(conn net.Conn) {
 
 		switch args[0] {
 		case "scan-ports":
-			fmt.Println("Running scan-ports")
 			scan_ports.ScanPortsCommand.Run(scan_ports.ScanPortsCommand, args[1:])
 		case "scan-gateways":
-			fmt.Println("Running scan-gateways")
 			scan_gateway.ScanGatewayCommand.Run(scan_gateway.ScanGatewayCommand, args[1:])
 		}
 
