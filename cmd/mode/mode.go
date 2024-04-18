@@ -3,7 +3,6 @@ package mode
 import (
 	"github.com/spf13/cobra"
 	"main/internal/controller"
-	"sync"
 )
 
 var ExecMode = &cobra.Command{
@@ -21,10 +20,8 @@ var ExecMode = &cobra.Command{
 			}
 			controller.ClientMode(ip)
 		} else if mode == "server" {
-			waitGroup := sync.WaitGroup{}
-			waitGroup.Add(1)
 			controller.ServerMode()
-			waitGroup.Wait()
+			select {}
 		} else {
 			// normal mode
 		}

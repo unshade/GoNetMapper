@@ -98,7 +98,7 @@ func TUIClientMode(ip string, commandChan chan string) {
 
 func ServerMode() {
 
-	listen, err := net.Listen("tcp", "127.0.0.1:6666")
+	listen, err := net.Listen("tcp", "0.0.0.0:6666")
 	if err != nil {
 		log.Fatal(err)
 		os.Exit(1)
