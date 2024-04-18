@@ -43,8 +43,11 @@ func handleConnection(conn net.Conn) {
 		n, err := conn.Read(buffer)
 
 		if err != nil {
-			log.Println(err)
-			conn.Close()
+			if err == io.EOF {
+				fmt.Println("Connection closed")
+			} else {
+				fmt.Println("Error reading from connection", err)
+			}
 			return
 		}
 
