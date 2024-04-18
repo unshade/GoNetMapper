@@ -4,6 +4,7 @@ import (
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
+	"main/cmd/mode"
 	"main/cmd/scan_gateway"
 	"main/cmd/scan_ports"
 	"main/cmd/version"
@@ -31,7 +32,7 @@ func Execute() {
 }
 
 func Register() {
-	RootCmd.AddCommand(execMode)
+	RootCmd.AddCommand(mode.ExecMode)
 	RootCmd.AddCommand(scan_ports.ScanPortsCommand)
 	RootCmd.AddCommand(scan_gateway.ScanGatewayCommand)
 	RootCmd.AddCommand(version.VersionCmd)

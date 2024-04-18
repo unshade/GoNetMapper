@@ -11,6 +11,7 @@ import (
 	"main/cmd/scan_gateway"
 	"main/cmd/scan_ports"
 	"main/internal"
+	"main/internal/controller"
 	"os"
 	"strings"
 	"time"
@@ -23,12 +24,6 @@ var (
 			Foreground(lipgloss.Color("#FFFDF5")).
 			Background(lipgloss.Color("#25A065")).
 			Padding(0, 1)
-
-	infoStyle = func() lipgloss.Style {
-		b := lipgloss.RoundedBorder()
-		b.Left = "┤"
-		return titleStyle.Copy().BorderStyle(b)
-	}()
 )
 
 type item struct {
@@ -143,53 +138,90 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if msg.String() == "enter" {
 			if m.confirm.Focused() {
-				m.needConfirm = false
-				m.confirm.Blur()
-				ip := m.confirm.Value()
-				go func() {
-					read, write, err := os.Pipe()
-					if err != nil {
-						fmt.Println(err)
-						return
-					}
+				if m.confirm.Placeholder == "Please enter the server ip address..." {
+					// Connect to server
 
-					scan_ports.ScanPortsCommand.SetOut(write)
-					scan_ports.ScanPortsCommand.SetErr(write)
-
-					stdout := os.Stdout
-					stderr := os.Stderr
-
-					os.Stdout = write
-					os.Stderr = write
-
+				} else {
+					// Scan ports
+					m.needConfirm = false
+					m.confirm.Blur()
+					ip := m.confirm.Value()
 					go func() {
-						// Always read from the pipe to prevent deadlock
-						buf := make([]byte, 1024)
-						for {
-							n, err := read.Read(buf)
-							if err != nil {
-								break
-							}
-							m.sub <- string(buf[:n])
+						read, write, err := os.Pipe()
+						if err != nil {
+							fmt.Println(err)
+							return
 						}
 
+						scan_ports.ScanPortsCommand.SetOut(write)
+						scan_ports.ScanPortsCommand.SetErr(write)
+
+						stdout := os.Stdout
+						stderr := os.Stderr
+
+						os.Stdout = write
+						os.Stderr = write
+
+						go func() {
+							// Always read from the pipe to prevent deadlock
+							buf := make([]byte, 1024)
+							for {
+								n, err := read.Read(buf)
+								if err != nil {
+									break
+								}
+								m.sub <- string(buf[:n])
+							}
+
+						}()
+
+						scan_ports.ScanPortsCommand.Run(scan_ports.ScanPortsCommand, []string{ip})
+
+						write.Close()
+						read.Close()
+
+						os.Stdout = stdout
+						os.Stderr = stderr
 					}()
-
-					scan_ports.ScanPortsCommand.Run(scan_ports.ScanPortsCommand, []string{ip})
-
-					write.Close()
-					read.Close()
-
-					os.Stdout = stdout
-					os.Stderr = stderr
-				}()
+				}
 			} else {
 				switch m.list.Cursor() {
 				case 0:
 					// Start in server mode
+					read, write, err := os.Pipe()
+					if err == nil {
 
+						go func() {
+							stdout := os.Stdout
+							stderr := os.Stderr
+
+							os.Stdout = write
+							os.Stderr = write
+
+							controller.ServerMode()
+
+							// Always read from the pipe to prevent deadlock
+							buf := make([]byte, 1024)
+							for {
+								n, err := read.Read(buf)
+								if err != nil {
+									break
+								}
+								m.sub <- string(buf[:n])
+							}
+
+							write.Close()
+							read.Close()
+
+							os.Stdout = stdout
+							os.Stderr = stderr
+						}()
+					}
 				case 1:
 					// Connect to server
+					m.confirm.Placeholder = "Please enter the server ip address..."
+					m.needConfirm = true
+					m.confirm.Focus()
 
 				case 2:
 					// Scan ports
