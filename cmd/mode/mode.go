@@ -1,11 +1,11 @@
-package cmd
+package mode
 
 import (
 	"github.com/spf13/cobra"
-	"main/internal"
+	"main/internal/controller"
 )
 
-var execMode = &cobra.Command{
+var ExecMode = &cobra.Command{
 	Use:   "exec-mode",
 	Short: "Execute the app in client or server mode",
 	Long:  "Execute the app in client or server mode",
@@ -14,7 +14,7 @@ var execMode = &cobra.Command{
 		if mode == "client" {
 
 		} else if mode == "server" {
-			internal.ServerMode(RootCmd)
+			controller.ServerMode()
 		} else {
 			// normal mode
 		}
